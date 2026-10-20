@@ -1,7 +1,8 @@
 import pytest
+from gateway_helpers import Env
 
-from balesdk import BaleClient
-from balesdk.testing import FakeTransport
+from balelink import BaleClient
+from balelink.testing import FakeTransport
 
 
 @pytest.fixture
@@ -14,3 +15,8 @@ async def bale(fake, tmp_path):
     client = BaleClient("test", directory=tmp_path, transport=fake, min_send_interval=0)
     async with client:
         yield client
+
+
+@pytest.fixture
+def env(tmp_path):
+    return Env(tmp_path)

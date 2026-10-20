@@ -6,7 +6,7 @@ python examples/03_send.py 09121234567 "hello"
 import asyncio
 import sys
 
-from balesdk import BaleClient, FileKind
+from balelink import BaleClient, FileKind
 
 
 async def main(phone: str, text: str) -> None:
@@ -14,7 +14,7 @@ async def main(phone: str, text: str) -> None:
         await bale.wait_until_connected()
         await bale.send_text(phone, text)
         await bale.send_file(
-            phone, b"hello from balesdk", kind=FileKind.DOCUMENT, file_name="hi.txt"
+            phone, b"hello from balelink", kind=FileKind.DOCUMENT, file_name="hi.txt"
         )
         print("sent")
 

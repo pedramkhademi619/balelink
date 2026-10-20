@@ -10,4 +10,4 @@ build/
 # a login is an account - never commit these
 *.bale
 gateway.json
-.balesdk/
+.balelink/

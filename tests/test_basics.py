@@ -1,6 +1,6 @@
 import pytest
 
-from balesdk import (
+from balelink import (
     Chat,
     ChatKind,
     InvalidPhone,
@@ -9,7 +9,7 @@ from balesdk import (
     normalize_phone,
     split_text,
 )
-from balesdk import (
+from balelink import (
     filters as F,
 )
 
@@ -75,7 +75,7 @@ def test_store_permissions_and_names(tmp_path):
 def _msg(fake_text, kind=ChatKind.PRIVATE, sender=1, chat=1):
     from datetime import datetime, timezone
 
-    from balesdk import Message
+    from balelink import Message
 
     return Message(
         id=1,
@@ -109,8 +109,8 @@ def test_command_ignores_bot_suffix_and_prefix():
 
 
 async def test_request_code_validates_phone(tmp_path):
-    from balesdk import BaleClient
-    from balesdk.testing import FakeTransport
+    from balelink import BaleClient
+    from balelink.testing import FakeTransport
 
     c = BaleClient("t", directory=tmp_path, transport=FakeTransport())
     with pytest.raises(InvalidPhone):

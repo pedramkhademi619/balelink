@@ -2,55 +2,11 @@ import asyncio
 import base64
 import json
 
-import pytest
 from fastapi.testclient import TestClient
+from gateway_helpers import KEY, login
 
-from balesdk import BaleClient
-from balesdk.gateway import Settings, create_app
-from balesdk.gateway.webhook import SIGNATURE_HEADER, WebhookSender, sign
-from balesdk.testing import FakeTransport
-
-KEY = {"X-Api-Key": "k"}
-
-
-class Env:
-    """A gateway wired to FakeTransports and a recording webhook poster."""
-
-    def __init__(self, tmp_path, **settings):
-        self.tmp = tmp_path
-        self.fakes = {}
-        self.posts = []
-        self.status = 200
-        self.settings = Settings(
-            directory=str(tmp_path), api_key="k", webhook_attempts=3, **settings
-        )
-
-        async def poster(url, body, headers):
-            self.posts.append((url, body, headers))
-            return self.status
-
-        self.sender = WebhookSender(attempts=3, poster=poster, base_delay=0.01)
-
-    def factory(self, name):
-        fake = self.fakes.setdefault(name, FakeTransport(users_by_phone={"989121234567": 777}))
-        return BaleClient(name, directory=self.tmp, transport=fake, min_send_interval=0)
-
-    def app(self):
-        return create_app(self.settings, client_factory=self.factory, sender=self.sender)
-
-
-@pytest.fixture
-def env(tmp_path):
-    return Env(tmp_path)
-
-
-def login(c, name="a"):
-    assert c.post("/sessions", json={"name": name}, headers=KEY).status_code == 201
-    r = c.post(f"/sessions/{name}/login/code", json={"phone": "09121234567"}, headers=KEY)
-    assert r.status_code == 200, r.text
-    r = c.post(f"/sessions/{name}/login/verify", json={"code": "12345"}, headers=KEY)
-    assert r.status_code == 200, r.text
-    return r.json()
+from balelink.gateway.webhook import SIGNATURE_HEADER, WebhookSender, sign
+from balelink.testing import FakeTransport
 
 
 def test_auth_required(env):
@@ -155,7 +111,13 @@ def test_webhook_signed_delivery(env):
     with TestClient(env.app()) as c:
         login(c)
         r = c.put("/sessions/a/webhook", json={"url": "http://hook/x", "secret": "s3"}, headers=KEY)
-        assert r.json()["webhook"] == {"url": "http://hook/x", "signed": True}
+        assert r.json()["webhook"] == {
+            "url": "http://hook/x",
+            "events": ["message"],
+            "signed": True,
+            "headers": [],
+            "retries": None,
+        }
         c.portal.call(lambda: env.fakes["a"].deliver("hello", chat_id=42))
 
         async def settle():
@@ -169,7 +131,8 @@ def test_webhook_signed_delivery(env):
         assert url == "http://hook/x"
         payload = json.loads(body)
         assert payload["event"] == "message" and payload["session"] == "a"
-        assert payload["message"]["text"] == "hello" and payload["message"]["chat"]["id"] == 42
+        assert payload["me"]["id"] == 1000 and payload["id"] and payload["timestamp"]
+        assert payload["payload"]["text"] == "hello" and payload["payload"]["chat"]["id"] == 42
         assert headers[SIGNATURE_HEADER] == sign("s3", body)
 
 
@@ -211,7 +174,7 @@ def test_state_survives_restart(env):
     with TestClient(env.app()) as c:
         s = c.get("/sessions/a", headers=KEY).json()
         assert s["status"] == "working"
-        assert s["webhook"] == {"url": "http://hook/x", "signed": True}
+        assert s["webhook"]["url"] == "http://hook/x" and s["webhook"]["signed"] is True
 
 
 def test_delete_session_logs_out(env):

@@ -1,6 +1,6 @@
-"""balesdk - log in to Bale (بله) as yourself, send and receive messages.
+"""balelink - log in to Bale (بله) as yourself, send and receive messages.
 
-    from balesdk import BaleClient, filters as F
+    from balelink import BaleClient, filters as F
 
 See the README. Unofficial; not affiliated with Bale.
 """
@@ -32,7 +32,10 @@ from .models import (
     ChatKind,
     CodeRequest,
     FileKind,
+    Group,
+    Location,
     Me,
+    Member,
     Message,
     User,
 )
@@ -53,6 +56,9 @@ __all__ = [
     "Attachment",
     "CodeRequest",
     "FileKind",
+    "Location",
+    "Group",
+    "Member",
     "SessionStore",
     "split_text",
     "normalize_phone",

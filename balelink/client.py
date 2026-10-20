@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 import logging
+import os
 import pathlib
 from collections.abc import AsyncIterator, Awaitable, Sequence
 from contextlib import asynccontextmanager
@@ -46,7 +48,9 @@ from .models import (
     CodeRequest,
     FileKind,
     FileSource,
+    Group,
     Me,
+    Member,
     Message,
     User,
 )
@@ -55,7 +59,7 @@ from .store import SessionStore
 from .text import DEFAULT_LIMIT, split_text
 from .transport import Transport
 
-log = logging.getLogger("balesdk")
+log = logging.getLogger("balelink")
 
 Target = Union[Chat, Message, User, int, str]
 Handler = Callable[[Message], Union[Awaitable[None], None]]
@@ -82,8 +86,8 @@ class BaleClient:
 
     Args:
         session: A name for the saved login (letters, digits, ``_-.``).
-        directory: Where logins are kept (default ``~/.balesdk``, or
-            ``$BALESDK_HOME``).
+        directory: Where logins are kept (default ``~/.balelink``, or
+            ``$BALELINK_HOME``).
         min_send_interval: Seconds to wait between sends. Bale may restrict an
             account that sends in bursts; keep a small gap.
         deliver_own: Also hand your own messages to handlers.
@@ -115,13 +119,16 @@ class BaleClient:
         self._ready_callbacks: List[Callable[[], Any]] = []
         self._lost_callbacks: List[Callable[[], Any]] = []
         self._error_callbacks: List[Callable[[BaseException, Message], Any]] = []
+        self._edited_handlers: List[_Registered] = []
+        self._deleted_handlers: List[Callable[..., Any]] = []
+        self._event_listeners: List[Callable[[str, dict], Any]] = []
         self._tasks: set[asyncio.Task[Any]] = set()
 
         # Created on first use, inside the running loop: on Python 3.9 a Lock or
         # Event made earlier binds to whatever loop happens to be current.
         self._send_lock_obj: Optional[asyncio.Lock] = None
         self._last_send = 0.0
-        self._phone_cache: Dict[str, Chat] = {}
+        self._phone_cache: Dict[str, Chat] = self._load_phones()
         self._started = False
         self._stopping_obj: Optional[asyncio.Event] = None
         self._monitor: Optional[asyncio.Task[None]] = None
@@ -221,7 +228,7 @@ class BaleClient:
             return self
         if not self.is_logged_in:
             raise NotLoggedIn()
-        await self._transport.start(self._on_incoming)
+        await self._transport.start(self._on_incoming, self._on_transport_event)
         self._started = True
         self._stopping.clear()
         self._monitor = asyncio.create_task(self._watch_connection(self.is_connected))
@@ -281,8 +288,10 @@ class BaleClient:
             now = self.is_connected
             if now and not was:
                 await self._call_all(self._ready_callbacks)
+                await self._emit("connection.up", {})
             elif was and not now:
                 await self._call_all(self._lost_callbacks)
+                await self._emit("connection.down", {})
             was = now
 
     # ---- receiving ---------------------------------------------------------------------------------
@@ -301,6 +310,49 @@ class BaleClient:
             return fn
 
         return register
+
+    def on_edited(self, *filters: Callable[[Message], bool]) -> Callable[[Handler], Handler]:
+        """``@bale.on_edited(F.private)`` - called with the message after an edit."""
+        combined = F.all_of(*filters) if filters else F.everything
+
+        def register(fn: Handler) -> Handler:
+            self._edited_handlers.append(_Registered(fn, combined))
+            return fn
+
+        return register
+
+    def on_deleted(self, fn: Callable[[Chat, List[int]], Any]):
+        """Called with ``(chat, message_ids)`` when messages are deleted."""
+        self._deleted_handlers.append(fn)
+        return fn
+
+    def on_event(self, fn: Callable[[str, dict], Any]):
+        """Every event as ``(name, payload)``: ``message``, ``message.edited``,
+        ``message.revoked``, ``connection.up``, ``connection.down``. This is what
+        the gateway turns into webhooks."""
+        self._event_listeners.append(fn)
+        return fn
+
+    async def _emit(self, name: str, payload: dict) -> None:
+        for fn in list(self._event_listeners):
+            await self._call_one(fn, name, payload)
+
+    async def _on_transport_event(self, name: str, payload: dict) -> None:
+        if name == "message.edited":
+            message: Message = payload["message"]
+            message._client = self
+            for h in list(self._edited_handlers):
+                try:
+                    if h.filter(message):
+                        task = asyncio.create_task(self._run_handler(h.fn, message))
+                        self._tasks.add(task)
+                        task.add_done_callback(self._tasks.discard)
+                except Exception:
+                    log.exception("a filter raised")
+        elif name == "message.revoked":
+            for fn in list(self._deleted_handlers):
+                await self._call_one(fn, payload["chat"], payload["ids"])
+        await self._emit(name, payload)
 
     def remove_handler(self, fn: Handler) -> bool:
         before = len(self._handlers)
@@ -353,9 +405,11 @@ class BaleClient:
         return await asyncio.wait_for(first(), timeout)
 
     async def _on_incoming(self, message: Message) -> None:
+        message._client = self
+        await self._emit("message.any", {"message": message})
         if message.from_me and not self.deliver_own:
             return
-        message._client = self
+        await self._emit("message", {"message": message})
         for q in self._streams:
             q.put_nowait(message)
         for h in list(self._handlers):
@@ -413,6 +467,37 @@ class BaleClient:
             return await self._chat_for_phone(target)
         raise TypeError(f"Can't turn {type(target).__name__} into a chat")
 
+    # Bale throttles phone-number lookups (observed: after a couple in a row it
+    # answers "not found" even for numbers it just found), so what we learn is
+    # kept on disk and reused.
+    def _phones_path(self) -> pathlib.Path:
+        return self.store.directory / f"{self.session_name}.phones.json"
+
+    def _load_phones(self) -> Dict[str, Chat]:
+        try:
+            data = json.loads(self._phones_path().read_text("utf-8"))
+            return {str(k): Chat(int(v), ChatKind.PRIVATE) for k, v in data.items()}
+        except (OSError, ValueError, AttributeError):
+            return {}
+
+    def _save_phones(self) -> None:
+        try:
+            self.store.ensure_directory()
+            path = self._phones_path()
+            path.write_text(json.dumps({k: c.id for k, c in self._phone_cache.items()}), "utf-8")
+            os.chmod(path, 0o600)
+        except OSError:
+            log.debug("could not save the phone cache", exc_info=True)
+
+    def remember_phone(self, phone: str, user_id: int) -> None:
+        """Teach the client that [phone] is [user_id] (skips a lookup)."""
+        self._phone_cache[normalize_phone(phone)] = Chat(user_id, ChatKind.PRIVATE)
+        self._save_phones()
+
+    def forget_phone(self, phone: str) -> None:
+        if self._phone_cache.pop(normalize_phone(phone), None) is not None:
+            self._save_phones()
+
     async def _chat_for_phone(self, raw: str) -> Chat:
         phone = normalize_phone(raw)
         if not is_plausible_phone(phone):
@@ -424,6 +509,7 @@ class BaleClient:
             raise ChatNotFound(f"No Bale user has the number {phone}")
         chat = user.chat
         self._phone_cache[phone] = chat
+        self._save_phones()
         return chat
 
     # ---- sending ------------------------------------------------------------------------------------------
@@ -480,6 +566,25 @@ class BaleClient:
     async def send_photo(self, target: Target, file: FileSource, **kw: Any) -> Message:
         return await self.send_file(target, file, kind=FileKind.PHOTO, **kw)
 
+    async def send_location(
+        self,
+        target: Target,
+        latitude: float,
+        longitude: float,
+        *,
+        reply_to: Optional[Message] = None,
+    ) -> Message:
+        """Send a map point."""
+        from .models import Location
+
+        Location(latitude, longitude)  # validates the range
+        chat = await self.resolve(target)
+        async with self._send_lock:
+            await self._paced()
+            sent = await self._transport.send_location(chat, latitude, longitude, reply_to)
+        sent._client = self
+        return sent
+
     async def edit_text(self, message: Message, text: str) -> None:
         await self._transport.edit_text(message, text)
 
@@ -507,6 +612,132 @@ class BaleClient:
                 await self._transport.set_typing(chat, False)
             except Exception:
                 log.debug("could not clear the typing indicator", exc_info=True)
+
+    # ---- forwarding, pinning, chats ----------------------------------------------------------------
+
+    async def forward_messages(self, messages: Sequence[Message], to: Target) -> None:
+        """Forward [messages] to another chat."""
+        chat = await self.resolve(to)
+        async with self._send_lock:
+            await self._paced()
+            await self._transport.forward_messages(list(messages), chat)
+
+    async def pin_message(self, message: Message, *, just_me: bool = False) -> None:
+        await self._transport.pin_message(message, just_me)
+
+    async def unpin_message(self, message: Message) -> None:
+        await self._transport.unpin_message(message)
+
+    async def unreact(self, message: Message, emoji: str) -> None:
+        await self._transport.unreact(message, emoji)
+
+    async def delete_chat(self, target: Target) -> None:
+        await self._transport.delete_chat(await self.resolve(target))
+
+    async def clear_chat(self, target: Target) -> None:
+        """Remove every message from a chat (for you)."""
+        await self._transport.clear_chat(await self.resolve(target))
+
+    # ---- contacts ---------------------------------------------------------------------------------------
+
+    async def _user_id(self, who: Union[Target, Member]) -> int:
+        if isinstance(who, Member):
+            return who.user_id
+        if isinstance(who, Message):
+            return who.sender_id
+        return (await self.resolve(who)).id
+
+    async def check_phone(self, phone: str) -> Optional[User]:
+        """Is this number on Bale? Returns the user, or ``None``."""
+        number = normalize_phone(phone)
+        cached = self._phone_cache.get(number)
+        if cached is not None:
+            return User(id=cached.id)
+        found = await self._transport.find_user_by_phone(number)
+        if found is not None:
+            self.remember_phone(number, found.id)
+        return found
+
+    async def contacts(self) -> List[User]:
+        return await self._transport.contacts()
+
+    async def add_contact(self, who: Target) -> None:
+        await self._transport.add_contact(await self._user_id(who))
+
+    async def remove_contact(self, who: Target) -> None:
+        await self._transport.remove_contact(await self._user_id(who))
+
+    async def rename_contact(self, who: Target, name: str) -> None:
+        await self._transport.rename_contact(await self._user_id(who), name)
+
+    async def block(self, who: Target) -> None:
+        await self._transport.block(await self._user_id(who))
+
+    async def unblock(self, who: Target) -> None:
+        await self._transport.unblock(await self._user_id(who))
+
+    async def blocked(self) -> List[User]:
+        return await self._transport.blocked()
+
+    async def user_info(self, who: Target) -> Optional[User]:
+        """Name, username, about, and whether they are a contact / blocked."""
+        return await self._transport.user_info(await self._user_id(who))
+
+    # ---- groups -----------------------------------------------------------------------------------------------
+
+    async def create_group(self, title: str, members: Sequence[Target] = ()) -> Group:
+        """Make a group and invite [members] (phone numbers, ids or Users)."""
+        ids = [await self._user_id(m) for m in members]
+        return await self._transport.create_group(title, ids)
+
+    async def group_info(self, group: Union[Group, Chat, int]) -> Group:
+        return await self._transport.group_info(self._group_id(group))
+
+    @staticmethod
+    def _group_id(group: Union[Group, Chat, int]) -> int:
+        return group if isinstance(group, int) else group.id
+
+    async def set_group_title(self, group: Union[Group, Chat, int], title: str) -> None:
+        await self._transport.set_group_title(self._group_id(group), title)
+
+    async def set_group_about(self, group: Union[Group, Chat, int], about: str) -> None:
+        await self._transport.set_group_about(self._group_id(group), about)
+
+    async def add_members(self, group: Union[Group, Chat, int], members: Sequence[Target]) -> None:
+        ids = [await self._user_id(m) for m in members]
+        await self._transport.add_members(self._group_id(group), ids)
+
+    async def remove_member(self, group: Union[Group, Chat, int], who: Target) -> None:
+        await self._transport.remove_member(self._group_id(group), await self._user_id(who))
+
+    async def set_admin(
+        self, group: Union[Group, Chat, int], who: Target, admin: bool = True
+    ) -> None:
+        await self._transport.set_admin(self._group_id(group), await self._user_id(who), admin)
+
+    async def leave_group(self, group: Union[Group, Chat, int]) -> None:
+        await self._transport.leave_group(self._group_id(group))
+
+    async def group_link(self, group: Union[Group, Chat, int], *, revoke: bool = False) -> str:
+        """The invite link; ``revoke=True`` makes a new one and kills the old."""
+        return await self._transport.group_link(self._group_id(group), revoke)
+
+    async def join_group(self, link: str) -> Group:
+        return await self._transport.join_group(link)
+
+    async def members(self, group: Union[Group, Chat, int], limit: int = 100) -> List[Member]:
+        return await self._transport.members(self._group_id(group), limit)
+
+    # ---- my profile -----------------------------------------------------------------------------------------------
+
+    async def set_name(self, name: str) -> None:
+        await self._transport.set_name(name)
+
+    async def set_about(self, about: str) -> None:
+        await self._transport.set_about(about)
+
+    async def set_username(self, username: str) -> None:
+        await self._transport.set_username(username)
 
     # ---- reading ----------------------------------------------------------------------------------------------
 

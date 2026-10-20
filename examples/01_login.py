@@ -5,7 +5,7 @@ python examples/01_login.py
 
 import asyncio
 
-from balesdk import BaleClient, BaleError
+from balelink import BaleClient, BaleError
 
 
 async def main() -> None:

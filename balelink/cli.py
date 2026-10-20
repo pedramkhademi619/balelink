@@ -1,12 +1,12 @@
-"""``balesdk`` on the command line.
+"""``balelink`` on the command line.
 
-balesdk login me            sign in (asks for phone, code, password)
-balesdk whoami me
-balesdk send me 09121234567 "hello"
-balesdk listen me           print incoming messages until Ctrl-C
-balesdk sessions
-balesdk logout me
-balesdk serve               the HTTP gateway (pip install "balesdk[gateway]")
+balelink login me            sign in (asks for phone, code, password)
+balelink whoami me
+balelink send me 09121234567 "hello"
+balelink listen me           print incoming messages until Ctrl-C
+balelink sessions
+balelink logout me
+balelink serve               the HTTP gateway (pip install "balelink[gateway]")
 """
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ def _serve(args: argparse.Namespace) -> int:
 
         from .gateway import Settings, create_app
     except ImportError:
-        print('The gateway needs extra packages: pip install "balesdk[gateway]"', file=sys.stderr)
+        print('The gateway needs extra packages: pip install "balelink[gateway]"', file=sys.stderr)
         return 1
     base = Settings.from_env()
     settings = Settings(
@@ -115,7 +115,7 @@ def _serve(args: argparse.Namespace) -> int:
     )
     if not settings.api_key and settings.host not in {"127.0.0.1", "localhost", "::1"}:
         print(
-            "Refusing to listen on a non-local address without BALESDK_API_KEY: "
+            "Refusing to listen on a non-local address without BALELINK_API_KEY: "
             "anyone who could reach it would control your Bale accounts.",
             file=sys.stderr,
         )
@@ -125,9 +125,9 @@ def _serve(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="balesdk", description="Bale personal-account client.")
-    p.add_argument("--version", action="version", version=f"balesdk {__version__}")
-    p.add_argument("--directory", help="where logins are kept (default ~/.balesdk)")
+    p = argparse.ArgumentParser(prog="balelink", description="Bale personal-account client.")
+    p.add_argument("--version", action="version", version=f"balelink {__version__}")
+    p.add_argument("--directory", help="where logins are kept (default ~/.balelink)")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="command", required=True)
 

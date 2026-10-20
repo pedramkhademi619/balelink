@@ -7,7 +7,7 @@ Everything is `async`; run it with `asyncio.run(...)`.
 ```python
 bale = BaleClient(
     "me",  # which saved login
-    directory=None,  # default ~/.balesdk (or $BALESDK_HOME)
+    directory=None,  # default ~/.balelink (or $BALELINK_HOME)
     min_send_interval=0.4,  # seconds between sends
     deliver_own=False,  # also pass your own messages to handlers
 )
@@ -109,6 +109,98 @@ between them.
 
 Unknown phone number -> `ChatNotFound`.
 
+## Photos, voice, video, files
+
+```python
+await bale.send_photo(chat, "pic.jpg", caption="look")  # size is read from the file
+await bale.send_file(
+    chat, "note.ogg", kind=FileKind.VOICE
+)  # Ogg Opus; length is read from the file
+await bale.send_file(chat, "clip.mp4", kind=FileKind.VIDEO)
+await bale.send_file(chat, b"bytes", file_name="a.txt")  # any bytes / open file
+```
+
+Incoming files arrive as `msg.attachment` with `kind`, `name`, `mime_type`, `size`,
+`width`/`height` (photo, video), `duration_ms` (voice, audio, video) and `caption`.
+`msg.kind` is a one-word summary, and there are filters `F.photo`, `F.voice`,
+`F.video`, `F.audio`, `F.document`, `F.has_attachment`.
+
+```python
+@bale.on_message(F.voice)
+async def save_voice(msg):
+    await msg.download(f"{msg.id}.ogg")  # or no path -> returns a file object
+```
+
+## Locations
+
+```python
+await bale.send_location(chat, 35.7, 51.4)
+await msg.reply_location(35.7, 51.4)
+
+
+@bale.on_message(F.location)
+async def where(msg):
+    print(msg.location.latitude, msg.location.longitude, msg.location.maps_url)
+```
+
+## Edits, deletions, forwarding, pinning
+
+```python
+@bale.on_edited(F.private)
+async def edited(msg): ...  # msg.text is the new text
+
+
+@bale.on_deleted
+async def gone(chat, ids): ...
+
+
+await msg.forward("09121234567")  # or bale.forward_messages([a, b], chat)
+await msg.pin()
+await msg.unpin()
+await msg.unreact("👍")
+await bale.clear_chat(chat)
+await bale.delete_chat(chat)
+
+
+@bale.on_event  # everything as (name, payload)
+async def any_event(
+    name, payload
+): ...  # message, message.any, message.edited, message.revoked, connection.up/down
+```
+
+## Contacts and profile
+
+```python
+user = await bale.check_phone("09121234567")  # None if not on Bale
+await bale.add_contact("09121234567")
+await bale.rename_contact(user, "Ali")
+await bale.block(user)
+await bale.unblock(user)
+await bale.blocked()
+info = await bale.user_info(user)  # name, username, about, is_contact, is_blocked
+await bale.contacts()
+await bale.set_name("New name")
+await bale.set_about("hi")
+await bale.set_username("me123")
+```
+
+## Groups
+
+```python
+g = await bale.create_group("Team", ["09121234567", 55])  # phones or ids
+await bale.set_group_title(g, "Team 2")
+await bale.set_group_about(g, "about")
+await bale.add_members(g, [66])
+await bale.remove_member(g, 66)
+await bale.set_admin(g, 55)
+await bale.set_admin(g, 55, False)
+members = await bale.members(g)  # [Member(user_id, name, is_admin)]
+link = await bale.group_link(g)
+await bale.group_link(g, revoke=True)
+await bale.join_group(link)
+await bale.leave_group(g)
+```
+
 ## Reading history
 
 ```python
@@ -148,8 +240,8 @@ Messages are written by this library; nothing Bale sends is copied into an error
 ## Testing your code
 
 ```python
-from balesdk import BaleClient
-from balesdk.testing import FakeTransport
+from balelink import BaleClient
+from balelink.testing import FakeTransport
 
 
 async def test_ping():

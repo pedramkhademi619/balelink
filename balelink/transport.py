@@ -1,8 +1,8 @@
-"""The one thing balesdk needs from the outside world: a way to talk to Bale.
+"""The one thing balelink needs from the outside world: a way to talk to Bale.
 
 ``BaleClient`` (the API you use) is written against this interface and never
 imports a Bale library. The real implementation, ``AiobaleTransport``, wraps
-the ``aiobale`` library; ``FakeTransport`` (in ``balesdk.testing``) lets you
+the ``aiobale`` library; ``FakeTransport`` (in ``balelink.testing``) lets you
 test a bot with no network. If Bale changes, or you prefer another library,
 you replace one class.
 """
@@ -20,16 +20,20 @@ from .models import (
     CodeRequest,
     FileKind,
     FileSource,
+    Group,
     Me,
+    Member,
     Message,
     User,
 )
 
 MessageCallback = Callable[[Message], Awaitable[None]]
+# (event name, payload) - "message.edited", "message.revoked", ...
+EventCallback = Callable[[str, dict], Awaitable[None]]
 
 
 class Transport(Protocol):
-    """Everything a Bale account can do, in balesdk's own types."""
+    """Everything a Bale account can do, in balelink's own types."""
 
     # ---- state ---------------------------------------------------------------
 
@@ -62,7 +66,9 @@ class Transport(Protocol):
 
     # ---- connection ------------------------------------------------------------
 
-    async def start(self, on_message: MessageCallback) -> None:
+    async def start(
+        self, on_message: MessageCallback, on_event: Optional[EventCallback] = None
+    ) -> None:
         """Connect and start delivering incoming messages. Raises
         ``ConnectionFailed`` if it can't connect. Reconnects on its own after."""
 
@@ -83,6 +89,14 @@ class Transport(Protocol):
         caption: Optional[str] = None,
         reply_to: Optional[Message] = None,
         file_name: Optional[str] = None,
+    ) -> Message: ...
+
+    async def send_location(
+        self,
+        chat: Chat,
+        latitude: float,
+        longitude: float,
+        reply_to: Optional[Message] = None,
     ) -> Message: ...
 
     async def edit_text(self, message: Message, text: str) -> None: ...
@@ -116,3 +130,67 @@ class Transport(Protocol):
     async def get_user(self, chat: Chat) -> Optional[User]: ...
 
     async def dialogs(self, limit: int = 40) -> List[Chat]: ...
+
+    # ---- more message actions -------------------------------------------------------
+
+    async def forward_messages(self, messages: Sequence[Message], to: Chat) -> None: ...
+
+    async def pin_message(self, message: Message, just_me: bool = False) -> None: ...
+
+    async def unpin_message(self, message: Message) -> None: ...
+
+    async def unreact(self, message: Message, emoji: str) -> None: ...
+
+    async def delete_chat(self, chat: Chat) -> None: ...
+
+    async def clear_chat(self, chat: Chat) -> None: ...
+
+    # ---- contacts ------------------------------------------------------------------
+
+    async def contacts(self) -> List[User]: ...
+
+    async def add_contact(self, user_id: int) -> None: ...
+
+    async def remove_contact(self, user_id: int) -> None: ...
+
+    async def rename_contact(self, user_id: int, name: str) -> None: ...
+
+    async def block(self, user_id: int) -> None: ...
+
+    async def unblock(self, user_id: int) -> None: ...
+
+    async def blocked(self) -> List[User]: ...
+
+    async def user_info(self, user_id: int) -> Optional[User]: ...
+
+    # ---- groups ----------------------------------------------------------------------
+
+    async def create_group(self, title: str, user_ids: Sequence[int]) -> Group: ...
+
+    async def group_info(self, group_id: int) -> Group: ...
+
+    async def set_group_title(self, group_id: int, title: str) -> None: ...
+
+    async def set_group_about(self, group_id: int, about: str) -> None: ...
+
+    async def add_members(self, group_id: int, user_ids: Sequence[int]) -> None: ...
+
+    async def remove_member(self, group_id: int, user_id: int) -> None: ...
+
+    async def set_admin(self, group_id: int, user_id: int, admin: bool) -> None: ...
+
+    async def leave_group(self, group_id: int) -> None: ...
+
+    async def group_link(self, group_id: int, revoke: bool = False) -> str: ...
+
+    async def join_group(self, link: str) -> Group: ...
+
+    async def members(self, group_id: int, limit: int = 100) -> List[Member]: ...
+
+    # ---- my profile ----------------------------------------------------------------------
+
+    async def set_name(self, name: str) -> None: ...
+
+    async def set_about(self, about: str) -> None: ...
+
+    async def set_username(self, username: str) -> None: ...

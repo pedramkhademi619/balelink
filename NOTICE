@@ -1,7 +1,7 @@
-balesdk talks to Bale through aiobale (PyPI: aiobale-py), an MIT-licensed
+balelink talks to Bale through aiobale (PyPI: aiobale-py), an MIT-licensed
 library that implements Bale's internal protocol. All of the protocol work -
 the reverse engineering, the message definitions, the connection handling - is
-theirs. balesdk adds a stable, tested layer on top. Please credit and support
+theirs. balelink adds a stable, tested layer on top. Please credit and support
 that project.
 
   aiobale  https://github.com/aminmadaniofficial/aiobale  (MIT, Amin Madani)
@@ -9,4 +9,4 @@ that project.
 The design borrows ideas from WAHA (WhatsApp HTTP API: sessions, webhooks, an
 API key) and rubpy (a personal-account Rubika client). No code is copied.
 
-balesdk is not affiliated with, endorsed by, or connected to Bale.
+balelink is not affiliated with, endorsed by, or connected to Bale.

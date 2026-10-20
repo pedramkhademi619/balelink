@@ -11,7 +11,7 @@ the most useful thing for fixing a problem.
 import asyncio
 import logging
 
-from balesdk import BaleClient, BaleError
+from balelink import BaleClient, BaleError
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,7 +37,7 @@ async def main() -> None:
 
     target = input("Phone to send a test message to (empty = skip): ").strip()
     if target:
-        sent = await bale.send_text(target, "balesdk smoke test - reply to this message")
+        sent = await bale.send_text(target, "balelink smoke test - reply to this message")
         print("3/4 send ......... ok, message", sent.id)
         print("4/4 receive ...... reply to it from that account within 60 s ...")
         try:

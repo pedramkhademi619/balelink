@@ -5,9 +5,9 @@ about: Something does not work
 
 **What happened / what you expected**
 
-**Steps** (a few lines of code or the `balesdk` command)
+**Steps** (a few lines of code or the `balelink` command)
 
-**Output of** `balesdk --version` and `pip show aiobale-py`, Python version, OS
+**Output of** `balelink --version` and `pip show aiobale-py`, Python version, OS
 
 **Error `code`** (e.g. `WRONG_CODE`) and the traceback
 

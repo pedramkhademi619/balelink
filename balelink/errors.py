@@ -1,4 +1,4 @@
-"""Every error balesdk raises.
+"""Every error balelink raises.
 
 Each has a stable ``code`` string, so a caller (or the HTTP gateway) can branch
 on it without parsing messages. None carries text taken from Bale itself.

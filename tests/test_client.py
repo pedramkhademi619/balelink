@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from balesdk import (
+from balelink import (
     BaleClient,
     ChatNotFound,
     CodeNotRequested,
@@ -13,10 +13,10 @@ from balesdk import (
     WrongCode,
     WrongPassword,
 )
-from balesdk import (
+from balelink import (
     filters as F,
 )
-from balesdk.testing import FakeTransport
+from balelink.testing import FakeTransport
 
 
 def make(tmp_path, **kw):
@@ -120,7 +120,7 @@ async def test_handlers_and_filters(bale, fake):
         got.append(("all", m.text))
 
     await fake.deliver("/ping")
-    await fake.deliver("hi", kind=__import__("balesdk").ChatKind.GROUP)
+    await fake.deliver("hi", kind=__import__("balelink").ChatKind.GROUP)
     await asyncio.sleep(0.05)
     assert ("ping", "/ping") in got
     assert ("group", "hi") in got
@@ -266,14 +266,14 @@ async def test_history_and_download(bale, fake, tmp_path):
     fake.history_store[3] = [m]
     assert (await bale.history(3))[0].text == "a"
     out = tmp_path / "f.bin"
-    from balesdk import Attachment
+    from balelink import Attachment
 
     await bale.download(Attachment(file_id=1, access_hash=2), out)
     assert out.read_bytes() == b"fake-bytes"
 
 
 async def test_resolve_types(bale):
-    from balesdk import Chat, User
+    from balelink import Chat, User
 
     assert (await bale.resolve(5)).id == 5
     assert (await bale.resolve(Chat(6))).id == 6
@@ -293,7 +293,7 @@ async def test_send_pacing(tmp_path):
 
 
 async def test_send_requires_connection(tmp_path):
-    from balesdk import NotConnected
+    from balelink import NotConnected
 
     fake, c = make(tmp_path, logged_in=True)
     with pytest.raises(NotConnected):
@@ -303,7 +303,7 @@ async def test_send_requires_connection(tmp_path):
 async def test_iter_history_pages_through_everything(bale, fake):
     from datetime import datetime, timedelta, timezone
 
-    from balesdk import Chat, Message
+    from balelink import Chat, Message
 
     base = datetime(2026, 1, 1, tzinfo=timezone.utc)
     fake.history_store[3] = [
@@ -314,3 +314,25 @@ async def test_iter_history_pages_through_everything(bale, fake):
     assert ids == list(range(100, 0, -1))
     capped = [m.id async for m in bale.iter_history(3, page_size=30, max_messages=5)]
     assert capped == [100, 99, 98, 97, 96]
+
+
+async def test_phone_lookups_are_remembered_on_disk(tmp_path):
+    fake = FakeTransport(logged_in=True, users_by_phone={"989121234567": 777})
+    first = BaleClient("t", directory=tmp_path, transport=fake, min_send_interval=0)
+    async with first:
+        await first.send_text("09121234567", "a")
+    assert (tmp_path / "t.phones.json").exists()
+    assert oct((tmp_path / "t.phones.json").stat().st_mode & 0o777) == "0o600"
+
+    # a new process: the lookup service now knows nobody, the disk cache still does
+    fake2 = FakeTransport(logged_in=True, users_by_phone={})
+    second = BaleClient("t", directory=tmp_path, transport=fake2, min_send_interval=0)
+    async with second:
+        sent = await second.send_text("0912 123 4567", "b")
+        assert sent.chat.id == 777
+        assert (await second.check_phone("+98 912 123 4567")).id == 777
+        second.forget_phone("09121234567")
+        with pytest.raises(ChatNotFound):
+            await second.send_text("09121234567", "c")
+        second.remember_phone("09121234567", 888)
+        assert (await second.send_text("09121234567", "d")).chat.id == 888

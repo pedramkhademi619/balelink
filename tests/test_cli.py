@@ -1,6 +1,6 @@
 import pytest
 
-from balesdk import cli
+from balelink import cli
 
 
 def test_parser_accepts_every_command():
@@ -28,6 +28,6 @@ def test_not_logged_in_commands(tmp_path, capsys):
 
 
 def test_serve_refuses_open_remote_bind(monkeypatch, capsys, tmp_path):
-    monkeypatch.delenv("BALESDK_API_KEY", raising=False)
+    monkeypatch.delenv("BALELINK_API_KEY", raising=False)
     assert cli.main(["--directory", str(tmp_path), "serve", "--host", "0.0.0.0"]) == 1
-    assert "BALESDK_API_KEY" in capsys.readouterr().err
+    assert "BALELINK_API_KEY" in capsys.readouterr().err

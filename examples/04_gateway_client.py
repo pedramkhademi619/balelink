@@ -1,6 +1,6 @@
 """Use the HTTP gateway from any language - here, Python with httpx.
 
-BALESDK_API_KEY=secret balesdk serve        # in another terminal
+BALELINK_API_KEY=secret balelink serve        # in another terminal
 python examples/04_gateway_client.py
 """
 

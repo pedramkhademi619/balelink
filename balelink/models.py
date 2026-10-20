@@ -61,10 +61,39 @@ class User:
     name: str = ""
     username: Optional[str] = None
     is_bot: bool = False
+    about: Optional[str] = None
+    is_contact: Optional[bool] = None
+    is_blocked: Optional[bool] = None
 
     @property
     def chat(self) -> Chat:
         return Chat(self.id, ChatKind.BOT if self.is_bot else ChatKind.PRIVATE)
+
+
+@dataclass(frozen=True)
+class Member:
+    """Someone in a group."""
+
+    user_id: int
+    name: Optional[str] = None
+    is_admin: bool = False
+
+
+@dataclass(frozen=True)
+class Group:
+    """A group chat."""
+
+    id: int
+    title: str = ""
+    about: Optional[str] = None
+    members_count: Optional[int] = None
+    username: Optional[str] = None
+    owner_id: Optional[int] = None
+    invite_link: Optional[str] = None
+
+    @property
+    def chat(self) -> Chat:
+        return Chat(self.id, ChatKind.GROUP)
 
 
 @dataclass(frozen=True)
@@ -85,6 +114,32 @@ class Attachment:
     name: Optional[str] = None
     mime_type: Optional[str] = None
     size: Optional[int] = None
+    kind: FileKind = None  # type: ignore[assignment]  # set in __post_init__
+    width: Optional[int] = None
+    height: Optional[int] = None
+    duration_ms: Optional[int] = None
+    """Length of a voice, audio or video. Bale reports voices in milliseconds."""
+    caption: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.kind is None:
+            object.__setattr__(self, "kind", FileKind.DOCUMENT)
+
+
+@dataclass(frozen=True)
+class Location:
+    """A point on the map."""
+
+    latitude: float
+    longitude: float
+
+    def __post_init__(self) -> None:
+        if not (-90 <= self.latitude <= 90 and -180 <= self.longitude <= 180):
+            raise ValueError("latitude must be -90..90 and longitude -180..180")
+
+    @property
+    def maps_url(self) -> str:
+        return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
 
 
 @dataclass(frozen=True)
@@ -110,6 +165,7 @@ class Message:
     text: Optional[str] = None
     attachment: Optional[Attachment] = None
     from_me: bool = False
+    location: Optional[Location] = None
     raw: Any = field(default=None, repr=False)
     _client: Optional[BaleClient] = field(default=None, repr=False)
 
@@ -120,6 +176,20 @@ class Message:
     @property
     def has_attachment(self) -> bool:
         return self.attachment is not None
+
+    @property
+    def kind(self) -> str:
+        """``text``, ``location``, or the attachment kind (``photo``, ``voice``,
+        ``video``, ``audio``, ``gif``, ``document``); ``other`` if none apply."""
+        if self.location is not None:
+            return "location"
+        if self.attachment is not None:
+            return self.attachment.kind.value
+        return "text" if self.text else "other"
+
+    @property
+    def caption(self) -> Optional[str]:
+        return self.attachment.caption if self.attachment else None
 
     @staticmethod
     def from_millis(ms: int) -> datetime:
@@ -146,6 +216,24 @@ class Message:
         return await self._need_client().send_file(
             self.chat, file, kind=kind, caption=caption, reply_to=self
         )
+
+    async def reply_location(self, latitude: float, longitude: float) -> Message:
+        return await self._need_client().send_location(
+            self.chat, latitude, longitude, reply_to=self
+        )
+
+    async def forward(self, to: Any) -> None:
+        """Forward this message to another chat (phone, id, Chat...)."""
+        await self._need_client().forward_messages([self], to)
+
+    async def pin(self, *, just_me: bool = False) -> None:
+        await self._need_client().pin_message(self, just_me=just_me)
+
+    async def unpin(self) -> None:
+        await self._need_client().unpin_message(self)
+
+    async def unreact(self, emoji: str) -> None:
+        await self._need_client().unreact(self, emoji)
 
     async def edit(self, text: str) -> None:
         await self._need_client().edit_text(self, text)

@@ -1,4 +1,4 @@
-# balesdk
+# balelink
 
 Log in to [Bale](https://bale.ai) (بله) with your **personal account** - not a
 bot - and send and receive messages from Python, from the command line, or over
@@ -11,14 +11,16 @@ HTTP. [فارسی](README.fa.md)
 
 > **Status: alpha.** Tested against an in-memory fake and the signatures of the
 > underlying library, and by hand on one live account: login with a code,
-> reconnecting from the saved login, sending a text, and reading history.
-> **Not yet tried live:** receiving, files, edit/delete/react, the gateway.
-> Run [`examples/smoke_test.py`](examples/smoke_test.py) and open an issue with
-> the output if something fails.
+> reconnecting from the saved login, sending and receiving text, **photos, voice
+> and locations**, downloading files, reading history, and read-only contact and
+> chat calls. **Not yet tried live:** groups, contact changes, blocking,
+> forwarding, pinning, edit/delete events, and the gateway. Run
+> [`examples/smoke_test.py`](examples/smoke_test.py) and open an issue with the
+> output if something fails.
 
 ```python
 import asyncio
-from balesdk import BaleClient, filters as F
+from balelink import BaleClient, filters as F
 
 bale = BaleClient("me")
 
@@ -40,8 +42,8 @@ asyncio.run(main())
 ## Install
 
 ```bash
-pip install balesdk                  # the library and CLI
-pip install "balesdk[gateway]"       # + the HTTP gateway
+pip install balelink                  # the library and CLI
+pip install "balelink[gateway]"       # + the HTTP gateway
 ```
 
 Python 3.9+. It is built on [aiobale](https://github.com/aminmadaniofficial/aiobale)
@@ -58,8 +60,8 @@ await bale.login(
 )  # only if you set one
 ```
 
-or `balesdk login me`. The login is saved to `~/.balesdk/me.bale` (set
-`BALESDK_HOME` to move it); later runs need no code. **That file is your
+or `balelink login me`. The login is saved to `~/.balelink/me.bale` (set
+`BALELINK_HOME` to move it); later runs need no code. **That file is your
 account** - keep it private. Phone numbers may be written `0912...`, `+98 912...`
 or in Persian digits.
 
@@ -91,6 +93,16 @@ reply = await bale.wait_for(F.from_user(42), timeout=60)
 
 `@bale.on_ready` and `@bale.on_disconnect` report the connection coming and
 going; reconnecting is automatic.
+
+## What it can do
+
+Text, photos, voice, video, audio, files and **locations** - sending and receiving.
+Edit, delete, reply, forward, pin, react (and un-react), typing, mark seen, history
+(paged), chats. Contacts (check a number, add, rename, block). Groups (create, edit,
+members, admins, invite links, join, leave). Your profile. Events for new, edited
+and deleted messages and for the connection. Plus an HTTP gateway with webhooks
+that mirrors [WAHA](https://waha.devlike.pro), and a CLI. Details in the
+[guide](docs/guide.md) and [gateway docs](docs/gateway.md).
 
 ## Send
 
@@ -124,12 +136,12 @@ error carries text received from Bale.
 ## Command line
 
 ```bash
-balesdk login me
-balesdk send me 09121234567 "hello"
-echo "from a pipe" | balesdk send me 09121234567 -
-balesdk listen me
-balesdk sessions
-balesdk logout me          # also deletes the saved login
+balelink login me
+balelink send me 09121234567 "hello"
+echo "from a pipe" | balelink send me 09121234567 -
+balelink listen me
+balelink sessions
+balelink logout me          # also deletes the saved login
 ```
 
 ## HTTP gateway
@@ -137,7 +149,7 @@ balesdk logout me          # also deletes the saved login
 Run accounts as a service so any language can use them, WAHA-style:
 
 ```bash
-BALESDK_API_KEY=change-me balesdk serve        # 127.0.0.1:8787
+BALELINK_API_KEY=change-me balelink serve        # 127.0.0.1:8787
 ```
 
 All calls (except `/health`) need `X-Api-Key`. Interactive docs at `/docs`.
@@ -156,17 +168,17 @@ All calls (except `/health`) need `X-Api-Key`. Interactive docs at `/docs`.
 
 Incoming messages are POSTed to the webhook as
 `{"event": "message", "session": "me", "message": {...}}`, signed with
-HMAC-SHA256 in `X-Balesdk-Signature` when you set a secret, retried with
+HMAC-SHA256 in `X-Balelink-Signature` when you set a secret, retried with
 backoff, and never allowed to block the connection. Errors are
 `{"error": {"code", "message"}}`. Sessions and webhooks are saved, and accounts
-reconnect when the gateway restarts. Settings: `BALESDK_HOST`, `_PORT`,
+reconnect when the gateway restarts. Settings: `BALELINK_HOST`, `_PORT`,
 `_API_KEY`, `_HOME`, `_AUTOSTART`, `_WEBHOOK_ATTEMPTS`, `_WEBHOOK_TIMEOUT`.
 
 ## Testing your own bot
 
 ```python
-from balesdk import BaleClient
-from balesdk.testing import FakeTransport
+from balelink import BaleClient
+from balelink.testing import FakeTransport
 
 fake = FakeTransport(logged_in=True)
 async with BaleClient("t", transport=fake) as bale:
@@ -177,7 +189,7 @@ async with BaleClient("t", transport=fake) as bale:
 
 ## How it is built
 
-`BaleClient` talks to a small `Transport` protocol; `balesdk/_aiobale.py` is
+`BaleClient` talks to a small `Transport` protocol; `balelink/_aiobale.py` is
 the only file that imports aiobale. When Bale or aiobale changes, that one file
 changes. A contract test checks the adapter against the installed aiobale.
 

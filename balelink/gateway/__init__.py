@@ -1,7 +1,7 @@
 """An HTTP gateway around ``BaleClient`` - run Bale accounts as a service.
 
-    pip install "balesdk[gateway]"
-    BALESDK_API_KEY=secret balesdk serve
+    pip install "balelink[gateway]"
+    BALELINK_API_KEY=secret balelink serve
 
 Any language can then log in, send and receive (by webhook) over plain HTTP,
 the way WAHA does for WhatsApp. See the README for the endpoints.

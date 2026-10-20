@@ -2,8 +2,8 @@
 
 ## What a saved login is
 
-`~/.balesdk/<name>.bale` **is your account**. Whoever holds the file can read
-your chats and send as you, with no code and no password. balesdk creates the
+`~/.balelink/<name>.bale` **is your account**. Whoever holds the file can read
+your chats and send as you, with no code and no password. balelink creates the
 directory `0700` and the files `0600`; keep it that way and never commit,
 upload, or share it. Back it up like a password.
 
@@ -20,13 +20,13 @@ responsibility for what happens to your account.
 
 ## The gateway
 
-- It listens on `127.0.0.1` by default. `balesdk serve` refuses to bind a
-  non-local address without `BALESDK_API_KEY`.
+- It listens on `127.0.0.1` by default. `balelink serve` refuses to bind a
+  non-local address without `BALELINK_API_KEY`.
 - Put it behind HTTPS (a reverse proxy) before exposing it - the API key and
   your messages travel in the clear otherwise.
 - Webhook URLs are fetched by the server. Anyone with the API key can make it
   call any URL it can reach, so treat the key like a password.
-- Set a webhook `secret` and verify `X-Balesdk-Signature` on the receiving end
+- Set a webhook `secret` and verify `X-Balelink-Signature` on the receiving end
   (see `examples/05_webhook_receiver.py`).
 
 ## Reporting a vulnerability

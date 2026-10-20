@@ -5,8 +5,8 @@ python examples/02_auto_reply.py
 
 import asyncio
 
-from balesdk import BaleClient
-from balesdk import filters as F
+from balelink import BaleClient
+from balelink import filters as F
 
 bale = BaleClient("me")
 

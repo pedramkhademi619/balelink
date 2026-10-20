@@ -8,7 +8,7 @@ import hmac
 
 from fastapi import FastAPI, HTTPException, Request
 
-from balesdk.gateway.webhook import SIGNATURE_HEADER, sign
+from balelink.gateway.webhook import SIGNATURE_HEADER, sign
 
 SECRET = "the-secret-you-gave-the-gateway"
 app = FastAPI()
@@ -21,5 +21,7 @@ async def hook(request: Request):
     if not hmac.compare_digest(given, sign(SECRET, body)):
         raise HTTPException(401, "bad signature")
     event = await request.json()
-    print(event["session"], event["message"]["sender_id"], event["message"]["text"])
+    msg = event["payload"]
+    if event["event"] == "message":
+        print(event["session"], msg["sender_id"], msg["kind"], msg["text"] or msg["caption"])
     return {"ok": True}

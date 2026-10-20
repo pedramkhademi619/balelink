@@ -16,10 +16,10 @@ _NAME = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 
 
 def default_directory() -> pathlib.Path:
-    env = os.environ.get("BALESDK_HOME")
+    env = os.environ.get("BALELINK_HOME")
     if env:
         return pathlib.Path(env).expanduser()
-    return pathlib.Path.home() / ".balesdk"
+    return pathlib.Path.home() / ".balelink"
 
 
 class SessionStore:

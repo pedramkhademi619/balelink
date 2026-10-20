@@ -1,16 +1,16 @@
 # Publishing to GitHub and PyPI
 
-For the maintainer. After this, anyone can `pip install balesdk`.
+For the maintainer. After this, anyone can `pip install balelink`.
 
 ## 1. Put it on GitHub
 
 ```bash
-cd balesdk
+cd balelink
 git add -A
 git status            # check: no *.bale file, no gateway.json, no .env
 git commit -m "Initial release"
 git branch -M main
-git remote add origin git@github.com:<you>/balesdk.git     # create the empty repo first
+git remote add origin git@github.com:<you>/balelink.git     # create the empty repo first
 git push -u origin main
 ```
 
@@ -19,14 +19,14 @@ your GitHub user name if it differs, and put your real name in `authors`.
 
 ## 2. Check the name is free
 
-<https://pypi.org/project/balesdk/> must show "404". If it is taken, change
-`name` in `pyproject.toml` (the import name `balesdk` can stay the same).
+<https://pypi.org/project/balelink/> must show "404". If it is taken, change
+`name` in `pyproject.toml` (the import name `balelink` can stay the same).
 
 ## 3. Build and look at the package
 
 ```bash
 pip install build twine
-python -m build                 # creates dist/balesdk-0.1.0.tar.gz and a .whl
+python -m build                 # creates dist/balelink-0.1.0.tar.gz and a .whl
 twine check dist/*
 ```
 
@@ -35,8 +35,8 @@ twine check dist/*
 1. Make an account at <https://test.pypi.org> and create an API token.
 2. `twine upload --repository testpypi dist/*`
 3. In a clean virtualenv:
-   `pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ balesdk`
-   then `balesdk --version`.
+   `pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ balelink`
+   then `balelink --version`.
 
 ## 5. Publish to PyPI
 
@@ -52,13 +52,13 @@ twine upload dist/*             # username: __token__, password: your pypi- API 
 **B. Automatically from GitHub (no token stored)** - "trusted publishing":
 
 1. On PyPI: *Your projects -> Publishing -> Add a pending publisher* with owner
-   = your GitHub user, repository = `balesdk`, workflow = `release.yml`,
+   = your GitHub user, repository = `balelink`, workflow = `release.yml`,
    environment = `pypi`.
 2. On GitHub: *Settings -> Environments -> New environment* named `pypi`.
 3. Release by tagging:
 
 ```bash
-# bump the version in pyproject.toml and balesdk/__init__.py, update CHANGELOG.md
+# bump the version in pyproject.toml and balelink/__init__.py, update CHANGELOG.md
 git commit -am "Release 0.1.0" && git tag v0.1.0 && git push --tags
 ```
 
@@ -69,9 +69,9 @@ the GitHub release.
 
 - A version number can never be re-uploaded or replaced on PyPI. Fix mistakes by
   releasing the next version (you can "yank" a bad one).
-- Keep `__version__` in `balesdk/__init__.py` and `version` in `pyproject.toml`
+- Keep `__version__` in `balelink/__init__.py` and `version` in `pyproject.toml`
   equal.
-- `aiobale-py` is a dependency, so `pip install balesdk` pulls it in; credit
+- `aiobale-py` is a dependency, so `pip install balelink` pulls it in; credit
   stays in `NOTICE`.
 - Never publish a `.bale` file. `.gitignore` excludes them; check `git status`
   before every commit.

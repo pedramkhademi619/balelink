@@ -1,6 +1,6 @@
 """Small, composable message filters.
 
-    from balesdk import filters as F
+    from balelink import filters as F
 
     @bale.on_message(F.private & F.command("start"))
     @bale.on_message(F.text_matches(r"price|قیمت") & ~F.from_me)
@@ -52,6 +52,12 @@ private = Filter(lambda m: m.chat.is_private, "private")
 group = Filter(lambda m: m.chat.is_group, "group")
 from_me = Filter(lambda m: m.from_me, "from_me")
 has_attachment = Filter(lambda m: m.has_attachment, "has_attachment")
+location = Filter(lambda m: m.location is not None, "location")
+photo = Filter(lambda m: m.kind == "photo", "photo")
+voice = Filter(lambda m: m.kind == "voice", "voice")
+video = Filter(lambda m: m.kind == "video", "video")
+audio = Filter(lambda m: m.kind == "audio", "audio")
+document = Filter(lambda m: m.kind == "document", "document")
 
 
 def from_user(*user_ids: int) -> Filter:
