@@ -43,8 +43,12 @@ curl -H "$H" -H "$J" $B/sessions/me/login/verify -d '{"code":"12345"}'
 # a two-step account answers 401 PASSWORD_REQUIRED: repeat with "password":"..."
 
 curl -H "$H" -H "$J" $B/sessions/me/messages -d '{"to":"09121234567","text":"hello"}'
-curl -H "$H" -H "$J" $B/sessions/me/images   -d '{"to":"09121234567","url":"https://example.com/a.jpg","caption":"look"}'
-curl -H "$H" -H "$J" $B/sessions/me/location -d '{"to":"09121234567","latitude":35.7,"longitude":51.4}'
+curl -H "$H" -H "$J" $B/sessions/me/images -d '{
+  "to": "09121234567", "url": "https://example.com/a.jpg", "caption": "look"
+}'
+curl -H "$H" -H "$J" $B/sessions/me/location -d '{
+  "to": "09121234567", "latitude": 35.7, "longitude": 51.4
+}'
 ```
 
 ## Endpoints
@@ -53,7 +57,7 @@ All paths start with `/sessions/{name}`.
 
 **Sessions**
 
-| | |
+| Endpoint | What it does |
 |---|---|
 | `GET /sessions`, `POST /sessions`, `GET`/`DELETE /sessions/{name}` | manage accounts (`DELETE` logs out and removes it) |
 | `POST .../start`, `/stop`, `/restart` | connect / disconnect / reconnect |
@@ -66,7 +70,7 @@ All paths start with `/sessions/{name}`.
 
 **Sending** (`to` is a phone number; set `"chat_id": true` to pass a chat id)
 
-| | |
+| Endpoint | What it does |
 |---|---|
 | `POST .../messages` `{to, text, reply_to?}` | text (over 4000 characters is split) |
 | `POST .../files`, `/images`, `/voice`, `/videos` `{to, data \| url, kind?, caption?, file_name?, reply_to?}` | `data` is base64, `url` is fetched by the gateway; up to 50 MB. `kind` is guessed from the type when you use `/files`. |
@@ -76,7 +80,7 @@ All paths start with `/sessions/{name}`.
 
 **Message actions** (`{id}` is a message from the last 500 this session sent or saw)
 
-| | |
+| Endpoint | What it does |
 |---|---|
 | `PATCH .../messages/{id}` `{text}` | edit |
 | `DELETE .../messages/{id}?just_me=` | delete |
@@ -86,7 +90,7 @@ All paths start with `/sessions/{name}`.
 
 **Chats**
 
-| | |
+| Endpoint | What it does |
 |---|---|
 | `GET .../chats` | your recent chats |
 | `GET .../chats/{chat}/messages?limit=&before=` | history, newest first; `before` is a Unix timestamp for paging back |
@@ -95,7 +99,7 @@ All paths start with `/sessions/{name}`.
 
 **Contacts**
 
-| | |
+| Endpoint | What it does |
 |---|---|
 | `GET .../contacts` | your contacts |
 | `GET .../contacts/check-exists?phone=` | is this number on Bale |
@@ -105,7 +109,7 @@ All paths start with `/sessions/{name}`.
 
 **Groups**
 
-| | |
+| Endpoint | What it does |
 |---|---|
 | `POST .../groups` `{title, members}` | create (members are phone numbers or user ids) |
 | `GET`/`PUT .../groups/{id}` `{title?, about?}` | info / edit |
