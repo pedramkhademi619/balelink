@@ -44,6 +44,8 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+# Newer ruff also formats code blocks inside Markdown; the docs favour readable one-liners.
+extend-exclude = ["*.md"]
 target-version = "py39"
 
 [tool.ruff.lint]
