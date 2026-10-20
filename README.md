@@ -2,11 +2,11 @@
 
 Log in to [Bale](https://bale.ai) (بله) with your **personal account** - not a
 bot - and send and receive messages from Python, from the command line, or over
-HTTP. [فارسی](README.fa.md)
+HTTP. [فارسی](https://github.com/pedramkhademi619/balelink/blob/main/README.fa.md)
 
 > **Unofficial, and it can get your account banned.** Bale's supported interface
 > is the Bot API. This drives a normal user account through Bale's internal
-> protocol. Read [SECURITY.md](SECURITY.md) before you use a number you care
+> protocol. Read [SECURITY.md](https://github.com/pedramkhademi619/balelink/blob/main/SECURITY.md) before you use a number you care
 > about. Not affiliated with Bale.
 
 > **Status: alpha.** Tested against an in-memory fake and the signatures of the
@@ -15,7 +15,7 @@ HTTP. [فارسی](README.fa.md)
 > and locations**, downloading files, reading history, and read-only contact and
 > chat calls. **Not yet tried live:** groups, contact changes, blocking,
 > forwarding, pinning, edit/delete events, and the gateway. Run
-> [`examples/smoke_test.py`](examples/smoke_test.py) and open an issue with the
+> [`examples/smoke_test.py`](https://github.com/pedramkhademi619/balelink/blob/main/examples/smoke_test.py) and open an issue with the
 > output if something fails.
 
 ```python
@@ -47,7 +47,7 @@ pip install "balelink[gateway]"       # + the HTTP gateway
 ```
 
 Python 3.9+. It is built on [aiobale](https://github.com/aminmadaniofficial/aiobale)
-(MIT), which does the protocol work - see [NOTICE](NOTICE).
+(MIT), which does the protocol work - see [NOTICE](https://github.com/pedramkhademi619/balelink/blob/main/NOTICE).
 
 ## Log in
 
@@ -102,7 +102,7 @@ Edit, delete, reply, forward, pin, react (and un-react), typing, mark seen, hist
 members, admins, invite links, join, leave). Your profile. Events for new, edited
 and deleted messages and for the connection. Plus an HTTP gateway with webhooks
 that mirrors [WAHA](https://waha.devlike.pro), and a CLI. Details in the
-[guide](docs/guide.md) and [gateway docs](docs/gateway.md).
+[guide](https://github.com/pedramkhademi619/balelink/blob/main/docs/guide.md) and [gateway docs](https://github.com/pedramkhademi619/balelink/blob/main/docs/gateway.md).
 
 ## Send
 
@@ -195,11 +195,11 @@ changes. A contract test checks the adapter against the installed aiobale.
 
 ## Documentation
 
-[Getting started](docs/getting-started.md) ·
-[Guide](docs/guide.md) ·
-[HTTP gateway](docs/gateway.md) ·
-[Troubleshooting & FAQ](docs/troubleshooting.md) ·
-[Publishing](docs/PUBLISHING.md) · [Security](SECURITY.md)
+[Getting started](https://github.com/pedramkhademi619/balelink/blob/main/docs/getting-started.md) ·
+[Guide](https://github.com/pedramkhademi619/balelink/blob/main/docs/guide.md) ·
+[HTTP gateway](https://github.com/pedramkhademi619/balelink/blob/main/docs/gateway.md) ·
+[Troubleshooting & FAQ](https://github.com/pedramkhademi619/balelink/blob/main/docs/troubleshooting.md) ·
+[Publishing](https://github.com/pedramkhademi619/balelink/blob/main/docs/PUBLISHING.md) · [Security](https://github.com/pedramkhademi619/balelink/blob/main/SECURITY.md)
 
 ## Limits
 
@@ -207,4 +207,4 @@ Personal chats and groups only (no channels or calls). Message formatting
 (bold, links) and inline buttons are not exposed yet. Two-step login and file
 types follow what aiobale supports.
 
-MIT licensed. See [CONTRIBUTING.md](CONTRIBUTING.md).
+MIT licensed. See [CONTRIBUTING.md](https://github.com/pedramkhademi619/balelink/blob/main/CONTRIBUTING.md).
